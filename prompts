@@ -1,0 +1,66 @@
+private String buildCelPath(String columnName) {
+
+    String[] parts = columnName.split("\\.");
+
+    StringBuilder prefix = new StringBuilder("message");
+    StringBuilder expression = new StringBuilder();
+
+    String[] iterators = {"x", "y", "z"};
+    int arrayLevel = 0;
+
+    boolean insideArray = false;
+
+    for (int i = 0; i < parts.length; i++) {
+
+        String part = parts[i];
+
+        if (part.contains("[]")) {
+
+            if (arrayLevel >= 3) {
+                throw new RuntimeException("Array nesting greater than 3 not supported");
+            }
+
+            String arrayField = part.replace("[]", "");
+
+            if (!insideArray) {
+                expression.append(prefix)
+                          .append(".")
+                          .append(arrayField)
+                          .append(".all(")
+                          .append(iterators[arrayLevel])
+                          .append(", ");
+
+                insideArray = true;
+            } else {
+                expression.append(iterators[arrayLevel - 1])
+                          .append(".")
+                          .append(arrayField)
+                          .append(".all(")
+                          .append(iterators[arrayLevel])
+                          .append(", ");
+            }
+
+            arrayLevel++;
+
+        } else {
+
+            if (!insideArray) {
+                prefix.append(".").append(part);
+            } else {
+                expression.append(iterators[arrayLevel - 1])
+                          .append(".")
+                          .append(part);
+            }
+        }
+    }
+
+    if (!insideArray) {
+        return prefix.toString();
+    }
+
+    for (int i = 0; i < arrayLevel; i++) {
+        expression.append(")");
+    }
+
+    return expression.toString();
+}
