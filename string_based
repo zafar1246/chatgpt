@@ -1,0 +1,55 @@
+Hi Team,
+I wanted to share the approach used to generate CEL expressions for fields that belong to arrays in our schema. Since our schema paths are flattened and arrays are represented using "[]", we can reliably construct CEL expressions using simple parsing and string manipulation.
+Key Idea
+In the flattened schema path, the "[]" marker indicates that the field is an array. Everything that appears after "[]" represents the structure of the array element. Therefore, the rule must be applied to each element of the array using the CEL "all()" iterator.
+For example:
+Flattened schema path:Header.SystemIdentification[].Identification.Scheme.COLUMN_LONG_1
+Meaning:SystemIdentification is an array, and the rule should be applied to each element inside that array.
+The corresponding CEL path becomes:
+message.Header.SystemIdentification.all(x, x.Identification.Scheme.COLUMN_LONG_1)
+Here "x" represents the iterator variable for each element of the array.
+---
+CEL Structure
+CEL requires array validations to follow this pattern:
+array.all(iterator, condition)
+Example:
+message.Header.SystemIdentification.all(x,x.Identification.Scheme.COLUMN_LONG_1 < 100)
+---
+Algorithm Used
+1. Split the flattened schema path using "".""2. Detect any part containing "[]"3. For each array level:   - Remove "[]"   - Generate ".all(iterator,"4. Continue building the inner path using the iterator variable5. Close the parentheses for each array level
+Iterator sequence used:
+x → first arrayy → second arrayz → third array
+---
+Java Implementation
+private String buildCelPath(String path) {
+    String[] parts = path.split("\\.");    String[] iterators = {"x", "y", "z", "a", "b"};
+    StringBuilder cel = new StringBuilder("message");    int arrayLevel = 0;
+    for (int i = 0; i < parts.length; i++) {
+        String part = parts[i];
+        if (part.contains("[]")) {
+            String field = part.replace("[]", "");            String iterator = iterators[arrayLevel];
+            cel.append(".")               .append(field)               .append(".all(")               .append(iterator)               .append(", ")               .append(iterator);
+            arrayLevel++;
+        } else {
+            cel.append(".").append(part);        }    }
+    for (int i = 0; i < arrayLevel; i++) {        cel.append(")");    }
+    return cel.toString();}
+---
+Example Outputs
+Input:Header.Amount
+Output:message.Header.Amount
+---
+Input:Header.SystemIdentification[].Identification.Scheme.COLUMN_LONG_1
+Output:message.Header.SystemIdentification.all(x,x.Identification.Scheme.COLUMN_LONG_1)
+---
+Input:orders[].items[].price
+Output:message.orders.all(x,x.items.all(y,y.price))
+---
+Final Rule Generation
+Once the CEL path is generated, it can be combined with the rule template.Example template:
+has(message.%s) && double(message.%s) < %s
+For array fields, the condition should be applied to the iterator field:
+message.Header.SystemIdentification.all(x,has(x.Identification.Scheme.COLUMN_LONG_1) &&double(x.Identification.Scheme.COLUMN_LONG_1) < 100)
+This ensures the rule is evaluated for every element in the array.
+Please review and let me know if any adjustments are needed.
+Thanks.
