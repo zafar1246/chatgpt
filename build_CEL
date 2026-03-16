@@ -1,0 +1,45 @@
+private String buildCelPath(String columnName) {
+
+    String[] parts = columnName.split("\\.");
+    String[] iterators = {"x", "y", "z"};
+
+    StringBuilder expression = new StringBuilder("message");
+    int arrayLevel = 0;
+
+    for (String part : parts) {
+
+        if (part.contains("[]")) {
+
+            if (arrayLevel >= 3) {
+                throw new RuntimeException("Array nesting greater than 3 not supported");
+            }
+
+            String field = part.replace("[]", "");
+            String iterator = iterators[arrayLevel];
+
+            expression.append(".")
+                      .append(field)
+                      .append(".all(")
+                      .append(iterator)
+                      .append(", ");
+
+            arrayLevel++;
+
+        } else {
+
+            if (arrayLevel == 0) {
+                expression.append(".").append(part);
+            } else {
+                expression.append(iterators[arrayLevel - 1])
+                          .append(".")
+                          .append(part);
+            }
+        }
+    }
+
+    for (int i = 0; i < arrayLevel; i++) {
+        expression.append(")");
+    }
+
+    return expression.toString();
+}
