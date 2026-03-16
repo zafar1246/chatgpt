@@ -1,40 +1,66 @@
 private String buildCelPath(String columnName) {
 
     String[] parts = columnName.split("\\.");
-    String[] iterators = {"x", "y", "z"};
 
-    StringBuilder expression = new StringBuilder("message");
+    StringBuilder prefix = new StringBuilder("message");
+    StringBuilder expression = new StringBuilder();
+
+    String[] iterators = {"x", "y", "z"};
     int arrayLevel = 0;
 
-    for (String part : parts) {
+    boolean insideArray = false;
+
+    for (int i = 0; i < parts.length; i++) {
+
+        String part = parts[i];
 
         if (part.contains("[]")) {
 
             if (arrayLevel >= 3) {
-                throw new RuntimeException("Array nesting greater than 3 not supported");
+                throw new IllegalArgumentException("Array nesting greater than 3 not supported");
             }
 
-            String field = part.replace("[]", "");
-            String iterator = iterators[arrayLevel];
+            String arrayField = part.replace("[]", "");
 
-            expression.append(".")
-                      .append(field)
-                      .append(".all(")
-                      .append(iterator)
-                      .append(", ");
+            if (!insideArray) {
+
+                expression.append(prefix)
+                          .append(".")
+                          .append(arrayField)
+                          .append(".all(")
+                          .append(iterators[arrayLevel])
+                          .append(", ")
+                          .append(iterators[arrayLevel]);
+
+                insideArray = true;
+
+            } else {
+
+                expression.append(".")
+                          .append(arrayField)
+                          .append(".all(")
+                          .append(iterators[arrayLevel])
+                          .append(", ")
+                          .append(iterators[arrayLevel]);
+            }
 
             arrayLevel++;
 
         } else {
 
-            if (arrayLevel == 0) {
-                expression.append(".").append(part);
+            if (!insideArray) {
+
+                prefix.append(".").append(part);
+
             } else {
-                expression.append(iterators[arrayLevel - 1])
-                          .append(".")
-                          .append(part);
+
+                expression.append(".").append(part);
             }
         }
+    }
+
+    if (!insideArray) {
+        return prefix.toString();
     }
 
     for (int i = 0; i < arrayLevel; i++) {
